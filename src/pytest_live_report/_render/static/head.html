@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{TITLE}}</title>
+<script>var RPT_VERSION={{VERSION}};var RPT_LANG="en";
+try{if(localStorage.getItem("rpt-theme")==="dark"){document.documentElement.className="rpt-dark";}}catch(e){}</script>
+<style>
+{{CSS}}
+</style>
+</head>
+<body>
+
+<header class="rpt-top">
+  <h1 class="rpt-title">{{TITLE}}</h1>
+  <span class="rpt-meta">{{META}}</span>
+</header>
+
+<div class="rpt-bar">
+  <div class="rpt-filters" id="rpt-filters">
+    <button type="button" data-rpt-filter="all" class="on">All <b>0</b></button>
+    <button type="button" data-rpt-filter="passed">Passed <b>0</b></button>
+    <button type="button" data-rpt-filter="failed">Failed <b>0</b></button>
+    <button type="button" data-rpt-filter="skipped">Skipped <b>0</b></button>
+  </div>
+  <input id="rpt-q" type="search" autocomplete="off" spellcheck="false" placeholder="Search test name…">
+  <button type="button" id="rpt-expand">Expand all</button>
+  <button type="button" id="rpt-theme" title="Toggle theme">◐</button>
+</div>
+
+<div class="rpt-overview" id="rpt-overview">
+  <svg class="rpt-pie" id="rpt-pie" viewBox="0 0 42 42" role="img" aria-label="Test status distribution"></svg>
+  <ul class="rpt-legend" id="rpt-legend"></ul>
+  <div class="rpt-totals" id="rpt-totals"></div>
+</div>
+
+<main id="rpt-cases">

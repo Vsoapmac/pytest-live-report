@@ -1,0 +1,24 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.pytest_cache/
+
+# Virtual environments
+.venv
+uv.lock
+
+# Orther
+backup/
+docs/
+
+# 报告输出 (跑一次 pytest --live-report-path 就会生成)
+output/
+report.html
+_preview.html
+
+tests/
+tools/

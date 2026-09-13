@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pytest-live-report"
+version = "0.1.0"
+description = "Pytest live Report"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+dependencies = ["pytest>=7.4"]
+
+# 只在装 xdist 时才会用到: 没装 xdist 时插件照常工作, 只是走单进程路径
+[project.optional-dependencies]
+xdist = ["pytest-xdist>=3.0"]
+
+[project.entry-points.pytest11]
+live_report = "pytest_live_report._plugin"
+
+[tool.hatch.build.targets.wheel]
+# 报告模板 / 样式 / 脚本都在这个包目录里, 会随包一起打进去, 不需要额外配 package-data
+packages = ["src/pytest_live_report"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
