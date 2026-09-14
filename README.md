@@ -27,8 +27,9 @@ point, so there is no `conftest.py` edit and no configuration file.
 - **A single HTML file**: the stylesheet, the page script and any screenshots you
   attach are inlined. Mail it, archive it, open it offline — it works.
 - **Structured data for scripts**: every page carries a machine-readable run
-  manifest and a JSON record per test case (see
-  [Reading the report from a script](#reading-the-report-from-a-script)).
+  manifest, and a JSON record per test case holding its status, timings, error and
+  the logs you wrote — see
+  [Reading the report from a script](#reading-the-report-from-a-script).
 - **pytest-xdist support**: with `-n`, workers hand their cards to the controller,
   which is the only process that writes the file.
 
@@ -118,10 +119,41 @@ print(manifest["exitstatus"])
 records = [
     json.loads(block)
     for block in re.findall(
-        r'<script type="application/json" class="rpt-case-json">(.*?)</script>', html
+        r'<script type="application/json" class="rpt-case-json">(.*?)</script>', html, re.S
     )
 ]
 ```
+
+Each record holds the case's `status`, `duration`, `started` / `finished`, `error`,
+`traceback` and `skip_reason`, plus a summary of what you wrote from inside the test:
+
+```python
+# live_report.log("POST /login", 200) becomes one text entry; newlines split into more
+for entry in records[0]["logs"]:
+    print(entry["ts"], entry["text"])   # 11:14:55 POST /login 200
+
+for shot in records[0]["shots"]:
+    print(shot["caption"], shot["bytes"], shot["mime"])   # after pay 29696 image/png
+```
+
+`logs` carries the **plain text** you passed to `live_report.log()`, so it needs no
+HTML unescaping. Lines written with `live_report.span_html()` additionally carry an
+`html` key with the rendered fragment; `text` stays clean either way. Newlines split
+into separate entries, so the entry count matches the `Log (n)` line on the card.
+
+`shots` carries the caption, byte size and MIME type of each screenshot — enough to
+check that a screenshot was taken, without inflating the report. The image data
+itself lives once, in the card's `<img src="data:...">`.
+
+Per-case records are versioned by their `v` field, currently `1`. Only **additive**
+changes happen within a version, so read optional fields defensively:
+
+```python
+for entry in records[0].get("logs", []):
+    ...
+```
+
+`v` is bumped only if a field is renamed, removed, or changes meaning.
 
 The manifest is written only when the session finishes normally. If pytest was
 interrupted, the file has no manifest — that is how the page (and your script) can

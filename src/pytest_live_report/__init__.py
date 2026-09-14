@@ -14,7 +14,7 @@
 # ------------ this package ------------
 from ._report import live_report
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 # 字母序, 只列公开名字
 __all__ = [

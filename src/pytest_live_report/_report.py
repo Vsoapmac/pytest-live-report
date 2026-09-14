@@ -8,6 +8,9 @@
 """测试用例里写报告内容的公开入口
 
 用户只需要 `from pytest_live_report import live_report`, 其余都是内部实现.
+
+写下的日志与截图除了渲染进卡片, 摘要也会写进卡片末尾的 JSON 记录: 日志给原始
+文本, 截图给图注与大小, 图片数据只留在卡片 HTML 里, 不重复存一份.
 """
 
 # ------------ standard library ------------
@@ -41,15 +44,17 @@ _BIG_IMAGE_BYTES = 5 * 1024 * 1024
 class Span:
     """一段已经渲染好的行内 HTML, 由 `live_report.log()` 原样放进卡片"""
 
-    __slots__ = ("html",)
+    __slots__ = ("html", "text")
 
-    def __init__(self, html: str) -> None:
-        """包住一段渲染好的行内 HTML
+    def __init__(self, html: str, text: str) -> None:
+        """包住一段渲染好的行内 HTML, 以及它的原始文本
 
         Args:
             html (str): 已转义并带好标签的片段
+            text (str): 未经转义的原始文本
         """
         self.html = html
+        self.text = text
 
     def __repr__(self) -> str:  # pragma: no cover - 只为调试时看得懂
         """调试用的可读表示"""
@@ -75,18 +80,22 @@ class Report:
             '<span class="rpt-b rpt-code">200 OK</span>'
             >>> live_report.span_html("<b>").html
             '<span>&lt;b&gt;</span>'
+            >>> live_report.span_html("<b>").text
+            '<b>'
         """
         # 只拼字符串, 不看当前用例也不写报告, 所以在用例之外也能调
         classes = " ".join(
             name for name, on in (("rpt-b", bold), ("rpt-code", code)) if on
         )
         attr = f' class="{classes}"' if classes else ""
-        return Span(f"<span{attr}>{esc(text)}</span>")
+        return Span(f"<span{attr}>{esc(text)}</span>", str(text))
 
     def log(self, *parts: Any) -> None:
         """往当前用例的卡片里写一行日志
 
         参数像 `print` 一样按空格拼接, 内容里的换行会拆成报告里的多行.
+
+        每行存两份: 原始文本给脚本读, HTML 给卡片显示.
 
         Args:
             *parts (Any): 要写入的内容; `span_html()` 的返回值原样嵌入, 其余转义
@@ -96,18 +105,38 @@ class Report:
             >>> from pytest_live_report._case import CaseData
             >>> _store.set_current(CaseData(nodeid="tests/test_a.py::test_login"))
             >>> live_report.log("POST /login", 200)
-            >>> _store.get_current().logs[0][1]
+            >>> stamp, text, html, styled = _store.get_current().logs[0]
+            >>> text
             'POST /login 200'
+            >>> styled
+            False
+            >>> live_report.log(live_report.span_html("OK", bold=True))
+            >>> _store.get_current().logs[1][1]
+            'OK'
+            >>> _store.get_current().logs[1][3]
+            True
         """
         case = _store.get_current()
         if case is None:
             _warn_no_case("live_report.log")
             return
-        text = " ".join(_to_html(part) for part in parts)
+        # 逐段取两份内容: 带样式的段只能从 HTML 取原文, 顺手记下这行有没有样式
+        html_parts = []
+        text_parts = []
+        styled = False
+        for part in parts:
+            html_parts.append(_to_html(part))
+            if isinstance(part, Span):
+                styled = True
+                text_parts.append(part.text)
+            else:
+                text_parts.append(str(part))
+        line_text = " ".join(text_parts)
+        line_html = " ".join(html_parts)
         stamp = _stamp()
         # 同一次调用的多行共用时间戳, 免得一句话被打上好几个时间
-        for line in text.split("\n"):
-            case.logs.append((stamp, line))
+        for text, html in zip(line_text.split("\n"), line_html.split("\n")):
+            case.logs.append((stamp, text, html, styled))
 
     def case_name(self, text: Any) -> None:
         """覆盖卡片标题, 不调就用测试函数名
@@ -155,6 +184,9 @@ class Report:
     def save_image(self, path: Any, caption: Optional[str] = None) -> None:
         """把一张图片内联进当前用例的卡片
 
+        除了 data URI, 还记下字节数与类型: 脚本靠这两项就能核对截图存进来了没有,
+        不必再解一遍 base64.
+
         Args:
             path (Any): 图片路径
             caption (Optional[str]): 图注, 不传就不显示图注
@@ -173,6 +205,8 @@ class Report:
             >>> live_report.save_image(shot, caption="下单页")
             >>> _store.get_current().shots[0][1]
             '下单页'
+            >>> _store.get_current().shots[0][2]
+            8
             >>> shot.unlink()
         """
         case = _store.get_current()
@@ -180,8 +214,9 @@ class Report:
             _warn_no_case("live_report.save_image")
             return
         # 读文件与编码当场做完: 有问题立刻报出来, 别等写报告时才发现
-        uri = _data_uri(Path(str(path)))
-        case.shots.append((uri, "" if caption is None else str(caption)))
+        uri, size, mime = _data_uri(Path(str(path)))
+        note = "" if caption is None else str(caption)
+        case.shots.append((uri, note, size, mime))
 # endregion ---------------------------- 公开 API ----------------------------
 
 
@@ -230,14 +265,14 @@ def _sniff_mime(data: bytes) -> str:
     return "image/png"
 
 
-def _data_uri(path: Path) -> str:
+def _data_uri(path: Path) -> tuple:
     """把一张图片读成可以直接放进 `<img src>` 的 data URI
 
     Args:
         path (Path): 图片路径, 必须是已存在的文件
 
     Returns:
-        str: 形如 `data:image/png;base64,...` 的串
+        tuple: `(data URI, 图片字节数, MIME 类型)`
 
     Raises:
         FileNotFoundError: 路径不是已存在的文件; 消息里给出解析后的绝对路径
@@ -258,8 +293,9 @@ def _data_uri(path: Path) -> str:
             f"bloat the report.",
             stacklevel=3,
         )
+    mime = _sniff_mime(data)
     encoded = base64.b64encode(data).decode("ascii")
-    return f"data:{_sniff_mime(data)};base64,{encoded}"
+    return f"data:{mime};base64,{encoded}", len(data), mime
 
 
 def _stamp() -> str:

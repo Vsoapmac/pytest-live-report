@@ -161,6 +161,8 @@ def _log(case: CaseData) -> str:
 
     折起来放, 默认展开: 默认折叠的话出错时用户还要多点一次才能看到现场.
 
+    每行日志存了原文与 HTML 两份, 卡片只贴 HTML 那一份.
+
     Args:
         case (CaseData): 用例数据
 
@@ -172,7 +174,7 @@ def _log(case: CaseData) -> str:
     lines = "".join(
         f'<div class="rpt-line"><span class="rpt-ts">{esc(stamp)}</span>'
         f'<span class="rpt-msg">{html}</span></div>\n'
-        for stamp, html in case.logs
+        for stamp, _text, html, _styled in case.logs
     )
     return (
         f'<details class="rpt-log" open><summary>Log ({len(case.logs)})</summary>\n'
@@ -186,6 +188,8 @@ def _shots(case: CaseData) -> str:
     图片是 base64 data URI, 直接放 `<img src>`; 页面脚本靠 `.rpt-shot img` 点击时
     弹大图, 这个类名不能改.
 
+    每张截图还存了字节数与类型, 那是给脚本读的, 卡片上不显示.
+
     Args:
         case (CaseData): 用例数据
 
@@ -198,7 +202,7 @@ def _shots(case: CaseData) -> str:
         f'<figure class="rpt-shot"><img src="{esc(uri)}" alt="">'
         + ("" if not note else f"<figcaption>{esc(note)}</figcaption>")
         + "</figure>\n"
-        for uri, note in case.shots
+        for uri, note, _size, _mime in case.shots
     )
 
 

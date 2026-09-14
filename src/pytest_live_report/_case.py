@@ -12,6 +12,7 @@
 """
 
 # ------------ standard library ------------
+import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Optional
@@ -54,19 +55,24 @@ class CaseData:
     error: str = ""
     # 完整 traceback 原文; 通过用例是空串
     traceback: str = ""
-    # 用例执行期间写下的日志行, 按调用顺序; 每项是 (时间戳, 已转义的 HTML 片段)
+    # 用例执行期间写下的日志行, 按调用顺序; 每项是
+    # (时间戳, 原始文本, 已转义的 HTML 片段, 是否带样式)
     logs: List[tuple] = field(default_factory=list)
-    # 用例执行期间保存的截图, 按调用顺序; 每项是 (data URI, 图注或空串)
+    # 用例执行期间保存的截图, 按调用顺序; 每项是
+    # (data URI, 图注或空串, 图片字节数, MIME 类型)
     shots: List[tuple] = field(default_factory=list)
 
     def json_record(self) -> dict:
-        """取这条用例的机器可读记录, 供消费脚本提取执行信息
+        """取这条用例的 JSON 记录, 供脚本提取执行信息
 
-        这里只产出数据, 拼成页内 `<script>` 标签归 `_render.case`. 字段是公开契约
-        (`v` 是版本号): 加字段可以, 改字段名就是破坏性变更.
+        这里只产出数据, 拼成页内 `<script>` 标签归 `_render.case`.
+
+        `v` 是版本号: 加字段不动它, 改字段名, 删字段或改动字段含义才递增. 所以脚本
+        读可选字段要用 `record.get("logs", [])`, 键缺失按空处理, 新旧报告都吃得下.
 
         Returns:
-            dict: 含 nodeid / name / status / duration / 起止时间 / 错误与跳过原因
+            dict: 含 nodeid / name / status / duration / 起止时间 / 错误与跳过原因,
+                以及日志与截图的摘要; 图片数据不在这里, 只留在卡片 HTML 里
 
         Example:
             >>> CaseData(nodeid="t.py::test_x", status="passed").json_record()["status"]
@@ -84,6 +90,18 @@ class CaseData:
             "error": self.error,
             "traceback": self.traceback,
             "skip_reason": self.skip_reason,
+            # 普通文本的 html 与 text 完全相同, 不必再存一份
+            "logs": [
+                {"ts": stamp, "text": text, "html": html}
+                if styled
+                else {"ts": stamp, "text": text}
+                for stamp, text, html, styled in self.logs
+            ],
+            # 只给摘要: 脚本靠这几项就能核对截图存进来了没有
+            "shots": [
+                {"caption": note, "bytes": size, "mime": mime}
+                for _uri, note, size, mime in self.shots
+            ],
         }
 # endregion ---------------------------- 用例数据 ----------------------------
 
