@@ -11,6 +11,9 @@
 
 写下的日志与截图除了渲染进卡片, 摘要也会写进卡片末尾的 JSON 记录: 日志给原始
 文本, 截图给图注与大小, 图片数据只留在卡片 HTML 里, 不重复存一份.
+
+这些方法只能在正在跑的用例里调用, 所以 Example 只是用法示例. 实际行为由
+`tests/test_report.py` 逐条断言.
 """
 
 # ------------ standard library ------------
@@ -101,20 +104,8 @@ class Report:
             *parts (Any): 要写入的内容; `span_html()` 的返回值原样嵌入, 其余转义
 
         Example:
-            >>> from pytest_live_report import _store, live_report
-            >>> from pytest_live_report._case import CaseData
-            >>> _store.set_current(CaseData(nodeid="tests/test_a.py::test_login"))
             >>> live_report.log("POST /login", 200)
-            >>> stamp, text, html, styled = _store.get_current().logs[0]
-            >>> text
-            'POST /login 200'
-            >>> styled
-            False
-            >>> live_report.log(live_report.span_html("OK", bold=True))
-            >>> _store.get_current().logs[1][1]
-            'OK'
-            >>> _store.get_current().logs[1][3]
-            True
+            >>> live_report.log("status", live_report.span_html("200 OK", bold=True))
         """
         case = _store.get_current()
         if case is None:
@@ -147,12 +138,8 @@ class Report:
             text (Any): 显示名
 
         Example:
-            >>> from pytest_live_report import _store, live_report
-            >>> from pytest_live_report._case import CaseData
-            >>> _store.set_current(CaseData(nodeid="tests/test_a.py::test_login[admin]"))
-            >>> live_report.case_name("登录流程")
-            >>> _store.get_current().name
-            '登录流程[admin]'
+            >>> live_report.case_name("登录流程")           # 卡片标题变成 登录流程
+            >>> live_report.case_name("登录流程[admin]")   # 参数化后缀会原样留下
         """
         case = _store.get_current()
         if case is None:
@@ -168,12 +155,7 @@ class Report:
             text (Any): 描述正文
 
         Example:
-            >>> from pytest_live_report import _store, live_report
-            >>> from pytest_live_report._case import CaseData
-            >>> _store.set_current(CaseData(nodeid="tests/test_a.py::test_login"))
             >>> live_report.case_desc("验证账号密码登录后的跳转")
-            >>> _store.get_current().desc
-            '验证账号密码登录后的跳转'
         """
         case = _store.get_current()
         if case is None:
@@ -196,17 +178,10 @@ class Report:
 
         Example:
             >>> from pathlib import Path
-            >>> from pytest_live_report import _store, live_report
-            >>> from pytest_live_report._case import CaseData
-            >>> _store.set_current(CaseData(nodeid="tests/test_a.py::test_login"))
-            >>> shot = Path("shot.png")
+            >>> shot = Path("home.png")
             >>> shot.write_bytes(b"\\x89PNG\\r\\n\\x1a\\n")
             8
             >>> live_report.save_image(shot, caption="下单页")
-            >>> _store.get_current().shots[0][1]
-            '下单页'
-            >>> _store.get_current().shots[0][2]
-            8
             >>> shot.unlink()
         """
         case = _store.get_current()
