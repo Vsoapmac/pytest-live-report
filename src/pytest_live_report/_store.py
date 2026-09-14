@@ -3,11 +3,11 @@
 # @Author  : Vsoapmac
 # @File    : _store.py
 # @Software: VSCode
-# @Description: 报告系统的进程级状态, 供钩子层与 report API 共用
+# @Description: 报告系统的进程级状态, 供钩子层与 live_report API 共用
 
 """存放报告用到的全部模块级状态
 
-`report.log()` 这类公开接口拿不到 `pytest.Config`, 却必须知道当前在跑哪条用例,
+`live_report.log()` 这类公开接口拿不到 `pytest.Config`, 却必须知道当前在跑哪条用例,
 所以这些状态只能放在模块级变量里.
 
 这里存的是: 报告文件句柄, 会话配置, 当前用例, 会话开始时刻与状态计数, 以及每条
@@ -32,7 +32,7 @@ from ._writer import ReportFile
 _report_file: Optional[ReportFile] = None
 # 当前正在跑的用例; 不在用例里时是 None
 _current: Optional[CaseData] = None
-# 本次会话的配置对象; 只拿到 report 的钩子靠它取配置, 同时它是"报告有没有启用"的
+# 本次会话的配置对象; 只拿到 live_report 的钩子靠它取配置, 同时它是"报告有没有启用"的
 # 开关: 是 None 就说明这次会话没开报告
 _config: Optional[pytest.Config] = None
 # 本次会话是不是 xdist 的 worker: 它照常收集内容, 但不写报告文件
@@ -164,7 +164,7 @@ def get_started() -> datetime:
 
 # region ---------------------------- 当前用例 ----------------------------
 def set_current(case: Optional[CaseData]) -> None:
-    """把一条用例设为"当前用例", 供 `report.log()` 这类 API 归属内容
+    """把一条用例设为"当前用例", 供 `live_report.log()` 这类 API 归属内容
 
     Args:
         case (Optional[CaseData]): 用例数据; 传 None 表示用例已结束

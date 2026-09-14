@@ -7,7 +7,7 @@
 
 """测试用例里写报告内容的公开入口
 
-用户只需要 `from pytest_live_report import report`, 其余都是内部实现.
+用户只需要 `from pytest_live_report import live_report`, 其余都是内部实现.
 """
 
 # ------------ standard library ------------
@@ -39,7 +39,7 @@ _BIG_IMAGE_BYTES = 5 * 1024 * 1024
 
 # region ---------------------------- 公开 API ----------------------------
 class Span:
-    """一段已经渲染好的行内 HTML, 由 `report.log()` 原样放进卡片"""
+    """一段已经渲染好的行内 HTML, 由 `live_report.log()` 原样放进卡片"""
 
     __slots__ = ("html",)
 
@@ -60,7 +60,7 @@ class Report:
     """报告 API 的唯一实例, 测试用例里用到的入口都挂在它上面"""
 
     def span_html(self, text: Any, *, bold: bool = False, code: bool = False) -> Span:
-        """渲染一段带样式的行内 HTML, 交给 `report.log()` 原样嵌进卡片
+        """渲染一段带样式的行内 HTML, 交给 `live_report.log()` 原样嵌进卡片
 
         Args:
             text (Any): 要显示的内容, 一律转义
@@ -68,12 +68,12 @@ class Report:
             code (bool): 等宽字体
 
         Returns:
-            Span: 渲染好的片段, 直接当 `report.log()` 的参数用
+            Span: 渲染好的片段, 直接当 `live_report.log()` 的参数用
 
         Example:
-            >>> report.span_html("200 OK", bold=True, code=True).html
+            >>> live_report.span_html("200 OK", bold=True, code=True).html
             '<span class="rpt-b rpt-code">200 OK</span>'
-            >>> report.span_html("<b>").html
+            >>> live_report.span_html("<b>").html
             '<span>&lt;b&gt;</span>'
         """
         # 只拼字符串, 不看当前用例也不写报告, 所以在用例之外也能调
@@ -92,16 +92,16 @@ class Report:
             *parts (Any): 要写入的内容; `span_html()` 的返回值原样嵌入, 其余转义
 
         Example:
-            >>> from pytest_live_report import _store, report
+            >>> from pytest_live_report import _store, live_report
             >>> from pytest_live_report._case import CaseData
             >>> _store.set_current(CaseData(nodeid="tests/test_a.py::test_login"))
-            >>> report.log("POST /login", 200)
+            >>> live_report.log("POST /login", 200)
             >>> _store.get_current().logs[0][1]
             'POST /login 200'
         """
         case = _store.get_current()
         if case is None:
-            _warn_no_case("report.log")
+            _warn_no_case("live_report.log")
             return
         text = " ".join(_to_html(part) for part in parts)
         stamp = _stamp()
@@ -118,16 +118,16 @@ class Report:
             text (Any): 显示名
 
         Example:
-            >>> from pytest_live_report import _store, report
+            >>> from pytest_live_report import _store, live_report
             >>> from pytest_live_report._case import CaseData
             >>> _store.set_current(CaseData(nodeid="tests/test_a.py::test_login[admin]"))
-            >>> report.case_name("登录流程")
+            >>> live_report.case_name("登录流程")
             >>> _store.get_current().name
             '登录流程[admin]'
         """
         case = _store.get_current()
         if case is None:
-            _warn_no_case("report.case_name")
+            _warn_no_case("live_report.case_name")
             return
         # 存纯文本, 转义交给渲染层
         case.name = f"{text}{param_suffix(case.nodeid)}"
@@ -139,16 +139,16 @@ class Report:
             text (Any): 描述正文
 
         Example:
-            >>> from pytest_live_report import _store, report
+            >>> from pytest_live_report import _store, live_report
             >>> from pytest_live_report._case import CaseData
             >>> _store.set_current(CaseData(nodeid="tests/test_a.py::test_login"))
-            >>> report.case_desc("验证账号密码登录后的跳转")
+            >>> live_report.case_desc("验证账号密码登录后的跳转")
             >>> _store.get_current().desc
             '验证账号密码登录后的跳转'
         """
         case = _store.get_current()
         if case is None:
-            _warn_no_case("report.case_desc")
+            _warn_no_case("live_report.case_desc")
             return
         case.desc = str(text)
 
@@ -164,20 +164,20 @@ class Report:
 
         Example:
             >>> from pathlib import Path
-            >>> from pytest_live_report import _store, report
+            >>> from pytest_live_report import _store, live_report
             >>> from pytest_live_report._case import CaseData
             >>> _store.set_current(CaseData(nodeid="tests/test_a.py::test_login"))
             >>> shot = Path("shot.png")
             >>> shot.write_bytes(b"\\x89PNG\\r\\n\\x1a\\n")
             8
-            >>> report.save_image(shot, caption="下单页")
+            >>> live_report.save_image(shot, caption="下单页")
             >>> _store.get_current().shots[0][1]
             '下单页'
             >>> shot.unlink()
         """
         case = _store.get_current()
         if case is None:
-            _warn_no_case("report.save_image")
+            _warn_no_case("live_report.save_image")
             return
         # 读文件与编码当场做完: 有问题立刻报出来, 别等写报告时才发现
         uri = _data_uri(Path(str(path)))
@@ -204,7 +204,7 @@ def _warn_no_case(api: str) -> None:
     """发一条告警, 说明这个入口只能在用例里调用
 
     Args:
-        api (str): 入口名字, 例如 `report.log`, 只用于告警文案
+        api (str): 入口名字, 例如 `live_report.log`, 只用于告警文案
     """
     warnings.warn(
         f"pytest-live-report: {api}() was called outside a test case, "
@@ -245,7 +245,7 @@ def _data_uri(path: Path) -> str:
     if not path.is_file():
         resolved = path if path.is_absolute() else Path.cwd() / path
         raise FileNotFoundError(
-            f"pytest-live-report: report.save_image() cannot find the image:\n"
+            f"pytest-live-report: live_report.save_image() cannot find the image:\n"
             f"  {resolved}\n"
             f"Hint: capture the image first, then pass its path in."
         )
@@ -273,4 +273,4 @@ def _stamp() -> str:
 
 
 # 全局唯一实例: `__init__.py` 的公开别名都取自它
-report = Report()
+live_report = Report()

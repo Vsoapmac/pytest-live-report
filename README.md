@@ -35,28 +35,28 @@ point, so there is no `conftest.py` edit and no configuration file.
 ## Writing content from a test
 
 ```python
-from pytest_live_report import report
+from pytest_live_report import live_report
 
 
 def test_login():
     """Verify the login flow."""
-    report.log("POST /login as admin")
-    report.log("status", 200, report.span_html("OK", bold=True, code=True))
+    live_report.log("POST /login as admin")
+    live_report.log("status", 200, live_report.span_html("OK", bold=True, code=True))
 
-    report.case_name("Login flow")           # override the card title
-    report.case_desc("Covers the redirect")  # override the docstring
-    report.save_image("screenshots/home.png", caption="after login")
+    live_report.case_name("Login flow")           # override the card title
+    live_report.case_desc("Covers the redirect")  # override the docstring
+    live_report.save_image("screenshots/home.png", caption="after login")
 
     assert True
 ```
 
 | Method | What it does |
 |---|---|
-| `report.log(*parts)` | Appends a log line to the current card. `*parts` are joined with spaces like `print`; newlines become separate lines; everything is HTML-escaped. |
-| `report.span_html(text, *, bold=False, code=False)` | Renders an inline fragment (bold / monospace). Pass the result to `report.log()` to have it embedded as-is. The only entry point you may call outside a test case. |
-| `report.case_name(text)` | Overrides the card title. A parametrized suffix is kept: `test_login[admin]` shows as `Login flow[admin]`. |
-| `report.case_desc(text)` | Overrides the card description (default: the test function's docstring). |
-| `report.save_image(path, caption=None)` | Inlines an image as a base64 data URI. Raises `FileNotFoundError` if the path is not an existing file. |
+| `live_report.log(*parts)` | Appends a log line to the current card. `*parts` are joined with spaces like `print`; newlines become separate lines; everything is HTML-escaped. |
+| `live_report.span_html(text, *, bold=False, code=False)` | Renders an inline fragment (bold / monospace). Pass the result to `live_report.log()` to have it embedded as-is. The only entry point you may call outside a test case. |
+| `live_report.case_name(text)` | Overrides the card title. A parametrized suffix is kept: `test_login[admin]` shows as `Login flow[admin]`. |
+| `live_report.case_desc(text)` | Overrides the card description (default: the test function's docstring). |
+| `live_report.save_image(path, caption=None)` | Inlines an image as a base64 data URI. Raises `FileNotFoundError` if the path is not an existing file. |
 
 Calling any of these outside a test case only emits a warning; it never fails your
 run. The report system never raises into your tests — a broken report becomes a
