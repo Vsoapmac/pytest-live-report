@@ -5,16 +5,49 @@ build-backend = "hatchling.build"
 [project]
 name = "pytest-live-report"
 version = "0.2.0"
-description = "Pytest live Report"
+description = "A pytest plugin that writes its HTML report while your tests are still running"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
+authors = [{ name = "Vsoapmac", email = "49892459+Vsoapmac@users.noreply.github.com" }]
+keywords = [
+    "pytest",
+    "pytest-plugin",
+    "testing",
+    "test-report",
+    "html-report",
+    "live-report",
+    "test-automation",
+    "xdist",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: Pytest",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Software Development :: Quality Assurance",
+    "Typing :: Typed",
+]
 dependencies = ["pytest>=7.4"]
 
 # 只在装 xdist 时才会用到: 没装 xdist 时插件照常工作, 只是走单进程路径
 [project.optional-dependencies]
 xdist = ["pytest-xdist>=3.0"]
+
+[project.urls]
+Homepage = "https://github.com/Vsoapmac/pytest-live-report"
+Repository = "https://github.com/Vsoapmac/pytest-live-report"
+Issues = "https://github.com/Vsoapmac/pytest-live-report/issues"
+Changelog = "https://github.com/Vsoapmac/pytest-live-report/releases"
 
 [project.entry-points.pytest11]
 live_report = "pytest_live_report._plugin"

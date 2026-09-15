@@ -164,3 +164,14 @@ tell a finished report from a truncated one.
 - Python 3.10+
 - pytest 7.4+
 - `pytest-xdist` is optional: `pip install pytest-live-report[xdist]`
+
+## License and links
+
+MIT licensed. Copyright (c) 2026 Vsoapmac.
+
+- Source, issues and changelog: <https://github.com/Vsoapmac/pytest-live-report>
+- Package on PyPI: <https://pypi.org/project/pytest-live-report/>
+
+Found a bug or have a feature request? Please
+[open an issue](https://github.com/Vsoapmac/pytest-live-report/issues).
+
