@@ -24,8 +24,8 @@ point, so there is no `conftest.py` edit and no configuration file.
   passed / failed / skipped so a long run is scannable.
 - **The failure traceback is already in the card**, so you do not have to scroll the
   terminal to find what broke.
-- **A single HTML file**: the stylesheet, the page script and any screenshots you
-  attach are inlined. Mail it, archive it, open it offline — it works.
+- **A single HTML file**: the stylesheet, the page script and any screenshots or
+  files you attach are inlined. Mail it, archive it, open it offline — it works.
 - **Structured data for scripts**: every page carries a machine-readable run
   manifest, and a JSON record per test case holding its status, timings, error and
   the logs you wrote. The bundled `read_report()` hands them back to your script —
@@ -47,6 +47,7 @@ def test_login():
     live_report.case_name("Login flow")           # override the card title
     live_report.case_desc("Covers the redirect")  # override the docstring
     live_report.save_image("screenshots/home.png", caption="after login")
+    live_report.attach("logs/server.log", caption="server log")  # any file, as a download link
 
     assert True
 ```
@@ -58,6 +59,7 @@ def test_login():
 | `live_report.case_name(text)` | Overrides the card title. A parametrized suffix is kept: `test_login[admin]` shows as `Login flow[admin]`. |
 | `live_report.case_desc(text)` | Overrides the card description (default: the test function's docstring). |
 | `live_report.save_image(path, caption=None)` | Inlines an image as a base64 data URI. Raises `FileNotFoundError` if the path is not an existing file. |
+| `live_report.attach(path, caption=None)` | Inlines any file as a base64 data URI and puts a download link on the card, next to the file name, size and MIME type. The report stays a single file, so whoever you send it to can download the attachment. Raises `FileNotFoundError` if the path is not an existing file. |
 
 Calling any of these outside a test case only emits a warning; it never fails your
 run. The report system never raises into your tests — a broken report becomes a
@@ -156,6 +158,9 @@ for entry in records[0]["logs"]:
 
 for shot in records[0]["shots"]:
     print(shot["caption"], shot["bytes"], shot["mime"])   # after pay 29696 image/png
+
+for att in records[0]["attachments"]:
+    print(att["name"], att["bytes"], att["mime"])         # server.log 512 text/plain
 ```
 
 `logs` carries the **plain text** you passed to `live_report.log()`, so it needs no
@@ -166,6 +171,12 @@ into separate entries, so the entry count matches the `Log (n)` line on the card
 `shots` carries the caption, byte size and MIME type of each screenshot — enough to
 check that a screenshot was taken, without inflating the report. The image data
 itself lives once, in the card's `<img src="data:...">`.
+
+`attachments` carries the `name`, `caption`, byte size and MIME type of every file
+you attached. The bytes themselves live once, in the card's download link
+(`<a download="..." href="data:...">`), so the report can be forwarded on its own.
+The MIME type is taken from the image signature first, then guessed from the file
+extension, and falls back to `application/octet-stream`.
 
 Per-case records are versioned by their `v` field, currently `1`. Only **additive**
 changes happen within a version, so read optional fields defensively:

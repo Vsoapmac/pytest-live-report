@@ -9,12 +9,13 @@
 
 用户只需要 `from pytest_live_report import live_report`, 其余都是内部实现.
 
-写下的日志与截图除了渲染进卡片, 摘要也会写进卡片末尾的 JSON 记录: 日志给原始
-文本, 截图给图注与大小, 图片数据只留在卡片 HTML 里, 不重复存一份.
+写下的日志与附件除了渲染进卡片, 摘要也会写进卡片末尾的 JSON 记录: 日志给原始
+文本, 截图与附件给文件名 / 说明 / 大小, 数据只留在卡片 HTML 里, 不重复存一份.
 """
 
 # ------------ standard library ------------
 import base64
+import mimetypes
 import warnings
 from datetime import datetime
 from pathlib import Path
@@ -36,8 +37,10 @@ _MAGIC_TYPES = (
     (b"GIF89a", "image/gif"),
     (b"BM", "image/bmp"),
 )
-# 单张超过这个大小就提醒一次, 但仍然内联: base64 会把体积再撑大约三分之一
-_BIG_IMAGE_BYTES = 5 * 1024 * 1024
+# 单个文件超过这个大小就提醒一次, 但仍然内联: base64 会把体积再撑大约三分之一
+_BIG_FILE_BYTES = 5 * 1024 * 1024
+# 类型认不出的附件按二进制流内联, 下载后交给收件人的系统决定怎么打开
+_DEFAULT_MIME = "application/octet-stream"
 
 
 # region ---------------------------- 公开 API ----------------------------
@@ -186,6 +189,35 @@ class Report:
         uri, size, mime = _data_uri(Path(str(path)))
         note = "" if caption is None else str(caption)
         case.shots.append((uri, note, size, mime))
+
+    def attach(self, path: Any, caption: Optional[str] = None) -> None:
+        """把任意文件作为附件内联进当前用例的卡片, 卡片上给一个下载链接
+
+        报告始终是单个 HTML 文件: 附件内容内联在链接里, 单独把报告发给别人也能下载.
+
+        Args:
+            path (Any): 附件路径
+            caption (Optional[str]): 附件说明, 不传就不显示
+
+        Raises:
+            FileNotFoundError: 附件路径不是已存在的文件
+
+        Example:
+            >>> from pathlib import Path
+            >>> dump = Path("response.txt")
+            >>> dump.write_text("200 OK", encoding="utf-8")
+            6
+            >>> live_report.attach(dump, caption="接口响应")
+            >>> dump.unlink()
+        """
+        case = _store.get_current()
+        if case is None:
+            _warn_no_case("live_report.attach")
+            return
+        # 读文件与编码当场做完: 有问题立刻报出来, 别等写报告时才发现
+        uri, size, mime, name = _attachment_uri(Path(str(path)))
+        note = "" if caption is None else str(caption)
+        case.attachments.append((uri, name, note, size, mime))
 # endregion ---------------------------- 公开 API ----------------------------
 
 
@@ -206,21 +238,67 @@ def _warn_no_case(api: str) -> None:
     )
 
 
-def _sniff_mime(data: bytes) -> str:
+def _image_mime(data: bytes) -> Optional[str]:
     """按文件头判断图片类型
 
     Args:
-        data (bytes): 图片字节
+        data (bytes): 文件字节
 
     Returns:
-        str: MIME 类型; 认不出来时按 `image/png` 处理
+        Optional[str]: 认出来的 MIME 类型; 不是已知图片时是 None
     """
     for magic, mime in _MAGIC_TYPES:
         if data.startswith(magic):
             return mime
     if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
         return "image/webp"
-    return "image/png"
+    return None
+
+
+def _sniff_mime(data: bytes) -> str:
+    """按文件头判断图片类型, 认不出来时按 `image/png` 处理
+
+    Args:
+        data (bytes): 图片字节
+
+    Returns:
+        str: MIME 类型
+    """
+    return _image_mime(data) or "image/png"
+
+
+def _file_bytes(path: Path, *, api: str, noun: str, hint: str) -> bytes:
+    """读一个文件的全部字节, 找不着或过大时按调用方给出的说法提醒
+
+    Args:
+        path (Path): 文件路径
+        api (str): 公开入口名, 只进报错文案
+        noun (str): 文件在文案里的称呼, 例如 "image" / "attachment"
+        hint (str): 出错信息里给用户的操作建议
+
+    Returns:
+        bytes: 文件全部字节
+
+    Raises:
+        FileNotFoundError: 路径不是已存在的文件
+    """
+    if not path.is_file():
+        resolved = path if path.is_absolute() else Path.cwd() / path
+        raise FileNotFoundError(
+            f"pytest-live-report: live_report.{api}() cannot find the {noun}:\n"
+            f"  {resolved}\n"
+            f"Hint: {hint}"
+        )
+    data = path.read_bytes()
+    # 超限只提醒, 仍然内联: 报告要能单独发出去, 文件不能落成额外文件
+    if len(data) > _BIG_FILE_BYTES:
+        warnings.warn(
+            f"pytest-live-report: {noun} {path.name} is "
+            f"{len(data) / 1024 / 1024:.1f} MB, inlining it will noticeably "
+            f"bloat the report.",
+            stacklevel=4,
+        )
+    return data
 
 
 def _data_uri(path: Path) -> tuple:
@@ -235,25 +313,39 @@ def _data_uri(path: Path) -> tuple:
     Raises:
         FileNotFoundError: 路径不是已存在的文件
     """
-    if not path.is_file():
-        resolved = path if path.is_absolute() else Path.cwd() / path
-        raise FileNotFoundError(
-            f"pytest-live-report: live_report.save_image() cannot find the image:\n"
-            f"  {resolved}\n"
-            f"Hint: capture the image first, then pass its path in."
-        )
-    data = path.read_bytes()
-    # 超限只提醒, 仍然内联: 报告要能单独发出去, 图片不能落成额外文件
-    if len(data) > _BIG_IMAGE_BYTES:
-        warnings.warn(
-            f"pytest-live-report: image {path.name} is "
-            f"{len(data) / 1024 / 1024:.1f} MB, inlining it will noticeably "
-            f"bloat the report.",
-            stacklevel=3,
-        )
+    data = _file_bytes(
+        path,
+        api="save_image",
+        noun="image",
+        hint="capture the image first, then pass its path in.",
+    )
     mime = _sniff_mime(data)
     encoded = base64.b64encode(data).decode("ascii")
     return f"data:{mime};base64,{encoded}", len(data), mime
+
+
+def _attachment_uri(path: Path) -> tuple:
+    """把任意文件读成可以直接放进 `<a href>` 的 data URI
+
+    Args:
+        path (Path): 附件路径, 必须是已存在的文件
+
+    Returns:
+        tuple: `(data URI, 字节数, MIME 类型, 文件名)`
+
+    Raises:
+        FileNotFoundError: 路径不是已存在的文件
+    """
+    data = _file_bytes(
+        path,
+        api="attach",
+        noun="attachment",
+        hint="create the attachment first, then pass its path in.",
+    )
+    # 图片先按文件头认, 其余按扩展名猜; 都认不出当二进制流, 下载后交给系统打开
+    mime = _image_mime(data) or mimetypes.guess_type(path.name)[0] or _DEFAULT_MIME
+    encoded = base64.b64encode(data).decode("ascii")
+    return f"data:{mime};base64,{encoded}", len(data), mime, path.name
 
 
 def _stamp() -> str:

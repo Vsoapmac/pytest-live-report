@@ -61,6 +61,9 @@ class CaseData:
     # 用例执行期间保存的截图, 按调用顺序; 每项是
     # (data URI, 图注或空串, 图片字节数, MIME 类型)
     shots: List[tuple] = field(default_factory=list)
+    # 用例执行期间添加的附件, 按调用顺序; 每项是
+    # (data URI, 文件名, 说明或空串, 字节数, MIME 类型)
+    attachments: List[tuple] = field(default_factory=list)
 
     def json_record(self) -> dict:
         """取这条用例的 JSON 记录
@@ -70,7 +73,7 @@ class CaseData:
 
         Returns:
             dict: 含 nodeid / name / status / duration / 起止时间 / 错误与跳过原因,
-                以及日志与截图的摘要; 图片数据不在里面
+                以及日志, 截图与附件的摘要; 附件数据不在里面
 
         Example:
             >>> CaseData(nodeid="t.py::test_x", status="passed").json_record()["status"]
@@ -99,6 +102,11 @@ class CaseData:
             "shots": [
                 {"caption": note, "bytes": size, "mime": mime}
                 for _uri, note, size, mime in self.shots
+            ],
+            # 附件同理: 名字 / 说明 / 大小 / 类型够核对, 原件在卡片的下载链接里
+            "attachments": [
+                {"name": name, "caption": note, "bytes": size, "mime": mime}
+                for _uri, name, note, size, mime in self.attachments
             ],
         }
 # endregion ---------------------------- 用例数据 ----------------------------

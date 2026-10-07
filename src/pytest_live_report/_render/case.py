@@ -17,7 +17,7 @@ HTML 结构必须与 `static/` 下的模板与脚本对齐, 改一边就要改�
 
 # ------------ this package ------------
 from .._case import CaseData
-from .html import duration_text, esc, optional_block, time_text
+from .html import duration_text, esc, optional_block, size_text, time_text
 from .page import json_script
 
 # ------------ constants ------------
@@ -199,8 +199,31 @@ def _shots(case: CaseData) -> str:
     )
 
 
+def _attachments(case: CaseData) -> str:
+    """渲染用例执行期间添加的附件, 每个附件一行下载链接
+
+    附件内容内联在链接里, 报告单独发给别人也能下载.
+
+    Args:
+        case (CaseData): 用例数据
+
+    Returns:
+        str: 一串 `<div class="rpt-attach">`; 一个附件都没有时是空串
+    """
+    if not case.attachments:
+        return ""
+    return "".join(
+        '<div class="rpt-attach">'
+        f'<a class="rpt-attach-link" href="{esc(uri)}" download="{esc(name)}">{esc(name)}</a>'
+        + ("" if not note else f'<span class="rpt-attach-note">{esc(note)}</span>')
+        + f'<span class="rpt-attach-meta">{esc(size_text(size))} · {esc(mime)}</span>'
+        + "</div>\n"
+        for uri, name, note, size, mime in case.attachments
+    )
+
+
 def _body(case: CaseData) -> str:
-    """渲染卡片的详情区: 描述, 起止时间, 跳过原因, 错误块, 日志与截图
+    """渲染卡片的详情区: 描述, 起止时间, 跳过原因, 错误块, 日志, 截图与附件
 
     Args:
         case (CaseData): 用例数据
@@ -215,6 +238,7 @@ def _body(case: CaseData) -> str:
         _error(case),
         _log(case),
         _shots(case),
+        _attachments(case),
     ]
     return '<div class="rpt-case-body">\n' + "".join(blocks) + "</div>\n"
 # endregion ---------------------------- 卡片拼装 ----------------------------

@@ -175,6 +175,21 @@ b{font-weight:600}
 }
 .rpt-shot figcaption{color:var(--tx3);font-size:11.5px;margin-top:4px;font-family:var(--sans)}
 
+/* ---------- attachments ---------- */
+.rpt-attach{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  margin:6px 0;padding:6px 10px;
+  background:var(--card2);border:1px solid var(--bd);border-radius:7px;
+  font-size:12px;
+}
+.rpt-attach-link{color:var(--accent);font-weight:600;text-decoration:none;word-break:break-all}
+.rpt-attach-link:hover{text-decoration:underline}
+.rpt-attach-note{color:var(--tx2)}
+.rpt-attach-meta{
+  margin-left:auto;color:var(--tx3);white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+
 /* semantic line colours, produced by report.log(color=...) */
 .rpt-c-ok{color:var(--ok)}
 .rpt-c-warn{color:#b26a00}

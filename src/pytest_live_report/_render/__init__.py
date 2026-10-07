@@ -19,7 +19,7 @@
 
 # ------------ this package ------------
 from .case import render_case
-from .html import duration_text, esc, optional_block, time_text
+from .html import duration_text, esc, optional_block, size_text, time_text
 from .page import (
     json_script,
     page_head,
@@ -37,5 +37,6 @@ __all__ = [
     "page_tail",
     "render_case",
     "run_manifest",
+    "size_text",
     "time_text",
 ]

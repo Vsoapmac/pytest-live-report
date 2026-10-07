@@ -59,6 +59,31 @@ def duration_text(duration: float) -> str:
     return f"{duration:.2f}s"
 
 
+def size_text(size: int) -> str:
+    """把字节数格式化成附件行上显示的大小
+
+    Args:
+        size (int): 字节数
+
+    Returns:
+        str: 形如 `512 B` / `1.5 KB` / `3.0 MB` 的文本
+
+    Example:
+        >>> size_text(512)
+        '512 B'
+        >>> size_text(1536)
+        '1.5 KB'
+    """
+    if size < 1024:
+        return f"{size} B"
+    value = size / 1024
+    for unit in ("KB", "MB"):
+        if value < 1024:
+            return f"{value:.1f} {unit}"
+        value /= 1024
+    return f"{value:.1f} GB"
+
+
 def time_text(moment: Optional[datetime]) -> str:
     """把时刻格式化成卡片上显示的时间, 时刻缺失时返回空串
 
