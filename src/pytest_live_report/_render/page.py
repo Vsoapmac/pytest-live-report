@@ -112,6 +112,8 @@ def page_head(title: str, meta: str = "") -> str:
     out = out.replace(_TOKEN_TITLE, esc(title))
     out = out.replace(_TOKEN_META, esc(meta))
     out = out.replace(_TOKEN_VERSION, json_script_value(_version()))
+    # 脚本放页头: IDE 强杀进程时页尾写不出来, 展开卡片与筛选这些页面功能不能跟着丢
+    out = out.replace(_TOKEN_JS, js())
     return out
 
 
@@ -132,7 +134,6 @@ def page_tail(run: Optional[Mapping[str, Any]] = None) -> str:
         True
     """
     out = _read("tail.html")
-    out = out.replace(_TOKEN_JS, js())
     return out.replace(_TOKEN_RUN, "" if run is None else run_manifest(run))
 
 

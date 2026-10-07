@@ -151,8 +151,14 @@
 
   function renderFooter() {
     var foot = $("#rpt-foot");
+    /* The footer lives in the tail template; a hard-killed report never gets one. */
+    if (!foot) {
+      foot = document.createElement("footer");
+      foot.className = "rpt-foot";
+      foot.id = "rpt-foot";
+      document.body.appendChild(foot);
+    }
     var run = $("#rpt-run");
-    if (!foot) return;
     if (!run) { foot.textContent = "Running… (report is being written)"; return; }
     var d;
     try { d = JSON.parse(run.textContent); } catch (e) { foot.textContent = "Running…"; return; }
