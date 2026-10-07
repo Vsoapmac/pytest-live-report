@@ -20,5 +20,6 @@ output/
 report.html
 _preview.html
 
+.vscode
 tests/
 tools/
