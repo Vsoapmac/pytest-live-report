@@ -28,8 +28,8 @@ point, so there is no `conftest.py` edit and no configuration file.
   attach are inlined. Mail it, archive it, open it offline — it works.
 - **Structured data for scripts**: every page carries a machine-readable run
   manifest, and a JSON record per test case holding its status, timings, error and
-  the logs you wrote — see
-  [Reading the report from a script](#reading-the-report-from-a-script).
+  the logs you wrote. The bundled `read_report()` hands them back to your script —
+  see [Reading the report from a script](#reading-the-report-from-a-script).
 - **pytest-xdist support**: with `-n`, workers hand their cards to the controller,
   which is the only process that writes the file.
 
@@ -99,7 +99,31 @@ or group by the `nodeid` in each card's JSON record if you need a stable order.
 
 ## Reading the report from a script
 
-Two kinds of JSON blocks are embedded in the page, so you never have to parse HTML:
+The plugin ships a parser — hand it the file path and you get the data back:
+
+```python
+from pytest_live_report import read_report
+
+report = read_report("report.html")
+
+print(report["counts"])                   # {'total': 42, 'passed': 40, 'failed': 1, 'skipped': 1}
+print(report["manifest"]["exitstatus"])
+
+for case in report["cases"]:
+    print(case["nodeid"], case["status"], case["duration"])
+```
+
+The returned dict has three keys. `manifest` is the run manifest, and it is
+`None` when pytest was interrupted — that is how a finished report is told apart
+from a truncated one. `counts` always holds `total` / `passed` / `failed` /
+`skipped`, tallied from the cases on the page, so it is available even for a
+truncated report. `cases` holds one dict per test case, in the order they appear
+in the file. `read_report()` raises `FileNotFoundError` if the path does not
+exist, and `ValueError` when the file is not a pytest-live-report report or a
+JSON block is broken.
+
+The same data is embedded as plain JSON blocks, so if you would rather not depend
+on the package, a regex is enough:
 
 ```python
 import json
@@ -112,8 +136,6 @@ html = Path("report.html").read_text(encoding="utf-8")
 manifest = json.loads(
     re.search(r'<script type="application/json" id="rpt-run">(.*?)</script>', html).group(1)
 )
-print(manifest["counts"])       # {'total': 42, 'passed': 40, 'failed': 1, 'skipped': 1}
-print(manifest["exitstatus"])
 
 # One record per test case.
 records = [
