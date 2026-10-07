@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pytest-live-report"
-version = "0.2.0"
+version = "0.3.0"
 description = "A pytest plugin that writes its HTML report while your tests are still running"
 readme = "README.md"
 license = "MIT"

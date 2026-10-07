@@ -115,9 +115,11 @@ for case in report["cases"]:
     print(case["nodeid"], case["status"], case["duration"])
 ```
 
-The returned dict has three keys. `manifest` is the run manifest, and it is
-`None` when pytest was interrupted — that is how a finished report is told apart
-from a truncated one. `counts` always holds `total` / `passed` / `failed` /
+The returned dict has three keys. `manifest` is the run manifest, and it is `None`
+only when the process was killed before pytest could shut down — that is how a
+truncated report is told apart from one that ran to the end. `Ctrl+C` is not that
+case: pytest still finishes the session, so the manifest is written and its
+`exitstatus` is `2`. `counts` always holds `total` / `passed` / `failed` /
 `skipped`, tallied from the cases on the page, so it is available even for a
 truncated report. `cases` holds one dict per test case, in the order they appear
 in the file. `read_report()` raises `FileNotFoundError` if the path does not
@@ -188,9 +190,11 @@ for entry in records[0].get("logs", []):
 
 `v` is bumped only if a field is renamed, removed, or changes meaning.
 
-The manifest is written only when the session finishes normally. If pytest was
-interrupted, the file has no manifest — that is how the page (and your script) can
-tell a finished report from a truncated one.
+The manifest is written whenever the session reaches its end, and that includes
+`Ctrl+C`: the run is interrupted, but pytest still finishes the session, so the
+report gets its manifest with `exitstatus` `2`. The file has no manifest only when
+the process was killed outright, for example by the stop button in an IDE — that is
+how the page (and your script) can tell a truncated report from a finished one.
 
 ## Requirements
 

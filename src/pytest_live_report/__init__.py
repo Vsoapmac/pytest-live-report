@@ -16,7 +16,7 @@
 from ._report import live_report
 from ._reader import read_report
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 # 字母序, 只列公开名字
 __all__ = [
