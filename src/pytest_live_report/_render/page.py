@@ -57,8 +57,7 @@ def _read(name: str) -> str:
         str: 文件全文, 按 UTF-8 解码
 
     Raises:
-        FileNotFoundError: 资源不在包里. 最常见的原因是 `pyproject.toml` 少配了
-            package-data, 文件压根没进 wheel
+        FileNotFoundError: 包内没有这个资源
     """
     path = files(_STATIC).joinpath(name)
     try:
@@ -82,11 +81,7 @@ def js() -> str:
 
 
 def _version() -> str:
-    """返回本包版本号, 取自 `__init__.__version__` 这唯一来源
-
-    导入留在函数内是为了避开循环 import: 模块加载期 `__init__` 还没把 `_report`
-    导完, 那时读版本号不安全.
-    """
+    """返回本包版本号"""
     from .. import __version__
 
     return __version__
@@ -95,13 +90,11 @@ def _version() -> str:
 
 # region ---------------------------- 页面拼装 ----------------------------
 def page_head(title: str, meta: str = "") -> str:
-    """渲染报告页头, 从 `<!DOCTYPE html>` 到 `<main id="rpt-cases">`
-
-    会话开始时写一次. 样式表与前端脚本都已内嵌, 报告是自包含的单文件.
+    """渲染报告页头, 样式与脚本都已内嵌
 
     Args:
-        title (str): 报告标题, 同时用于 `<title>` 与页面上的 `<h1>`
-        meta (str): 环境信息摘要行, 传进来时已经拼成纯文本
+        title (str): 报告标题, 同时用于页面标题与页内一级标题
+        meta (str): 环境信息摘要行, 已经是拼好的纯文本
 
     Returns:
         str: 页面头部片段
@@ -123,11 +116,11 @@ def page_head(title: str, meta: str = "") -> str:
 
 
 def page_tail(run: Optional[Mapping[str, Any]] = None) -> str:
-    """渲染报告页尾: 运行清单加上收尾 DOM
+    """渲染报告页尾: 运行清单与页面结尾
 
     Args:
-        run (Optional[Mapping[str, Any]]): 运行信息, 键见 `run_manifest()`; 会话被
-            中断时传 None, 这样清单不落盘, 页面据此知道这次没跑完
+        run (Optional[Mapping[str, Any]]): 运行信息, 键见 `run_manifest()`; 传 None
+            表示会话被中断
 
     Returns:
         str: 页面尾部片段
@@ -144,16 +137,14 @@ def page_tail(run: Optional[Mapping[str, Any]] = None) -> str:
 
 
 def run_manifest(info: Mapping[str, Any]) -> str:
-    """渲染机器可读的运行清单, 也就是一次运行的结构化出口
+    """渲染机器可读的运行清单
 
-    这块 JSON 的存在本身就是在说"这次跑完了": pytest 被中断时它不会进文件, 于是
-    页面和消费脚本都能区分跑完的报告与截断的报告.
+    只有会话跑完才会写出这块 JSON, 页面与消费脚本靠它区分完整报告与截断报告.
 
     Args:
-        info (Mapping[str, Any]): 运行信息, 认识的键有 `exitstatus` (int),
-            `counts` (至少含 total / passed / failed / skipped), `started` 与
-            `ended` (ISO 8601 字符串), `env`; 表里没有的键原样透传, 以后加字段
-            不必改函数签名
+        info (Mapping[str, Any]): 运行信息, 认识的键有 `exitstatus`, `counts`
+            (至少含 total / passed / failed / skipped), `started`, `ended` 与
+            `env`; 表里没有的键原样透传
 
     Returns:
         str: 一个 `<script type="application/json" id="rpt-run">` 标签
@@ -188,14 +179,10 @@ def json_script(
 ) -> str:
     """把数据渲染成页面可解析的 JSON 块
 
-    两道转义缺一不可: 正文里的 `<` 要转掉, 否则数据里一个 `</script>` 就能提前
-    闭合标签把页面截断; 属性值则要过 `esc()`.
-
     Args:
         payload (Any): 要序列化的数据
-        element_id (Optional[str]): `id` 属性的值, 不传就不写这个属性
-        css_class (Optional[str]): `class` 属性的值, 用来把单条用例记录标成
-            `rpt-case-json`
+        element_id (Optional[str]): `id` 属性, 不传就不写
+        css_class (Optional[str]): `class` 属性, 不传就不写
 
     Returns:
         str: 完整的 `<script type="application/json">` 标签

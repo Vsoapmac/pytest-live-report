@@ -49,33 +49,24 @@ _phases: dict = {}
 
 # region ---------------------------- 报告文件 ----------------------------
 def set_report_file(report_file: Optional[ReportFile]) -> None:
-    """记下本次会话的报告文件
-
-    Args:
-        report_file (Optional[ReportFile]): 报告文件句柄; 传 None 表示报告被关掉
-    """
+    """记下本次会话的报告文件, 传 None 表示报告被关掉"""
     global _report_file
     _report_file = report_file
 
 
 def get_report_file() -> Optional[ReportFile]:
-    """取本进程正在使用的报告文件
-
-    Returns:
-        Optional[ReportFile]: 报告文件句柄; 报告没启用或被降级关掉时是 None
-    """
+    """取本进程正在使用的报告文件, 报告没启用时返回 None"""
     return _report_file
 # endregion ---------------------------- 报告文件 ----------------------------
 
 
 # region ---------------------------- 会话配置 ----------------------------
 def set_config(config: pytest.Config, bypass: bool = False) -> None:
-    """记下本次会话的配置对象, 同时表示报告功能已启用
+    """记下本次会话的配置并启用报告
 
     Args:
         config (pytest.Config): 本次会话的配置对象
-        bypass (bool): True 表示这是 xdist 的 worker: 内容照常收集, 但它不写文件,
-            卡片由控制器落盘
+        bypass (bool): True 表示这是 xdist 的 worker, 只收集内容不写文件
     """
     global _config, _is_bypassed
     _config = config
@@ -83,34 +74,25 @@ def set_config(config: pytest.Config, bypass: bool = False) -> None:
 
 
 def get_config() -> Optional[pytest.Config]:
-    """取本次会话的配置对象
-
-    Returns:
-        Optional[pytest.Config]: 配置对象; 报告没启用时是 None, 调用方据此提前返回
-    """
+    """取本次会话的配置对象, 报告没启用时返回 None"""
     return _config
 
 
 def is_bypassed() -> bool:
-    """本次会话是不是 xdist 的 worker
-
-    Returns:
-        bool: True 表示 worker 进程, 报告文件归控制器独占
-    """
+    """本次会话是不是 xdist 的 worker, 是则报告文件由控制器写"""
     return _is_bypassed
 # endregion ---------------------------- 会话配置 ----------------------------
 
 
 # region ---------------------------- 用例阶段记录 ----------------------------
 def ensure_phase(nodeid: str) -> dict:
-    """取一条用例的阶段记录, 没有就现建一个
+    """取一条用例的阶段记录, 没有就新建一条
 
     Args:
         nodeid (str): 用例的完整节点 id
 
     Returns:
-        dict: 该用例的记录, 含 `started` (开始时刻), `desc` (用例描述) 与
-            `reports` (三个阶段报告)
+        dict: 该用例的记录, 含开始时刻, 用例描述与三个阶段报告
     """
     record = _phases.get(nodeid)
     if record is None:
@@ -120,81 +102,50 @@ def ensure_phase(nodeid: str) -> dict:
 
 
 def get_phase(nodeid: str) -> Optional[dict]:
-    """取一条用例的阶段记录, 没有就返回 None
-
-    Args:
-        nodeid (str): 用例的完整节点 id
-
-    Returns:
-        Optional[dict]: 该用例的记录; 还没建过时是 None
-    """
+    """取一条用例的阶段记录, 还没建过时返回 None"""
     return _phases.get(nodeid)
 
 
 def drop_phase(nodeid: str) -> None:
-    """清掉一条用例的阶段记录, 卡片写完后立刻调用
-
-    Args:
-        nodeid (str): 用例的完整节点 id
-    """
+    """清掉一条用例的阶段记录, 卡片写完后立即调用"""
     _phases.pop(nodeid, None)
 # endregion ---------------------------- 用例阶段记录 ----------------------------
 
 
 # region ---------------------------- 会话时刻 ----------------------------
 def set_started(moment: datetime) -> None:
-    """记下会话开始时刻
-
-    Args:
-        moment (datetime): 带本地时区的开始时刻
-    """
+    """记下会话开始时刻"""
     global _started
     _started = moment
 
 
 def get_started() -> datetime:
-    """取会话开始时刻
-
-    Returns:
-        datetime: 会话开始时刻; 收尾时若还没有值, 退成当前时刻让清单仍能写出
-    """
+    """取会话开始时刻, 还没有值时退回当前时刻"""
     return _started if _started is not None else datetime.now().astimezone()
 # endregion ---------------------------- 会话时刻 ----------------------------
 
 
 # region ---------------------------- 当前用例 ----------------------------
 def set_current(case: Optional[CaseData]) -> None:
-    """把一条用例设为"当前用例", 供 `live_report.log()` 这类 API 归属内容
-
-    Args:
-        case (Optional[CaseData]): 用例数据; 传 None 表示用例已结束
-    """
+    """把一条用例设为当前用例, 公开接口写的内容都归它; 传 None 表示用例已结束"""
     global _current
     _current = case
 
 
 def get_current() -> Optional[CaseData]:
-    """取当前正在跑的用例
-
-    Returns:
-        Optional[CaseData]: 当前用例; 不在用例里时是 None
-    """
+    """取当前正在跑的用例, 不在用例里时返回 None"""
     return _current
 # endregion ---------------------------- 当前用例 ----------------------------
 
 
 # region ---------------------------- 计数 ----------------------------
 def count(status: str) -> None:
-    """给某个状态的计数加一
-
-    Args:
-        status (str): 状态名, 只会是 passed / failed / skipped 之一
-    """
+    """给某个状态的计数加一, 状态只会是 passed / failed / skipped 之一"""
     _counts[status] = _counts.get(status, 0) + 1
 
 
 def get_counts() -> dict:
-    """取会话结束时写进运行清单的四项计数
+    """取会话结束时写进运行清单的计数
 
     Returns:
         dict: total / passed / failed / skipped 四项, 缺的补 0
@@ -212,7 +163,7 @@ def get_counts() -> dict:
 def reset() -> None:
     """会话开始时清空全部状态, 免得上一次会话的数据留到这一次
 
-    新增字段必须同时加进这里, 否则会跨会话残留.
+    新增状态时必须同步加进这个函数, 否则会跨会话残留.
     """
     global _report_file, _current, _config, _is_bypassed, _started, _counts, _phases
     _report_file = None

@@ -65,15 +65,15 @@ class Report:
     """报告 API 的唯一实例, 测试用例里用到的入口都挂在它上面"""
 
     def span_html(self, text: Any, *, bold: bool = False, code: bool = False) -> Span:
-        """渲染一段带样式的行内 HTML, 交给 `live_report.log()` 原样嵌进卡片
+        """渲染一段带样式的行内 HTML, 直接作为 `live_report.log()` 的参数
 
         Args:
-            text (Any): 要显示的内容, 一律转义
-            bold (bool): 加粗
-            code (bool): 等宽字体
+            text (Any): 要显示的内容, 特殊字符会被转义
+            bold (bool): 是否加粗
+            code (bool): 是否使用等宽字体
 
         Returns:
-            Span: 渲染好的片段, 直接当 `live_report.log()` 的参数用
+            Span: 渲染好的片段
 
         Example:
             >>> live_report.span_html("200 OK", bold=True, code=True).html
@@ -94,8 +94,6 @@ class Report:
         """往当前用例的卡片里写一行日志
 
         参数像 `print` 一样按空格拼接, 内容里的换行会拆成报告里的多行.
-
-        每行存两份: 原始文本给脚本读, HTML 给卡片显示.
 
         Args:
             *parts (Any): 要写入的内容; `span_html()` 的返回值原样嵌入, 其余转义
@@ -163,12 +161,11 @@ class Report:
     def save_image(self, path: Any, caption: Optional[str] = None) -> None:
         """把一张图片内联进当前用例的卡片
 
-        除了 data URI, 还记下字节数与类型: 脚本靠这两项就能核对截图存进来了没有,
-        不必再解一遍 base64.
+        图片过大时只发一条告警, 仍然内联进报告.
 
         Args:
             path (Any): 图片路径
-            caption (Optional[str]): 图注, 不传就不显示图注
+            caption (Optional[str]): 图注, 不传就不显示
 
         Raises:
             FileNotFoundError: 图片路径不是已存在的文件
@@ -194,25 +191,14 @@ class Report:
 
 # region ---------------------------- 私有函数 ----------------------------
 def _to_html(part: Any) -> str:
-    """把一个参数转成卡片里的 HTML, `Span` 原样保留, 其余转义
-
-    Args:
-        part (Any): 任意内容, 例如字符串, 数字, 字典, 或 `span_html()` 的返回值
-
-    Returns:
-        str: 可以直接嵌进卡片的 HTML 片段
-    """
+    """把参数转成卡片里的 HTML; `Span` 原样保留, 其余转义"""
     if isinstance(part, Span):
         return part.html
     return esc(part)
 
 
 def _warn_no_case(api: str) -> None:
-    """发一条告警, 说明这个入口只能在用例里调用
-
-    Args:
-        api (str): 入口名字, 例如 `live_report.log`, 只用于告警文案
-    """
+    """发一条告警, 说明这个入口只能在用例里调用; 参数是入口名字, 只用于告警文案"""
     warnings.warn(
         f"pytest-live-report: {api}() was called outside a test case, "
         f"the content was dropped.",
@@ -224,7 +210,7 @@ def _sniff_mime(data: bytes) -> str:
     """按文件头判断图片类型
 
     Args:
-        data (bytes): 图片字节, 只看开头的几个字节
+        data (bytes): 图片字节
 
     Returns:
         str: MIME 类型; 认不出来时按 `image/png` 处理
@@ -247,7 +233,7 @@ def _data_uri(path: Path) -> tuple:
         tuple: `(data URI, 图片字节数, MIME 类型)`
 
     Raises:
-        FileNotFoundError: 路径不是已存在的文件; 消息里给出解析后的绝对路径
+        FileNotFoundError: 路径不是已存在的文件
     """
     if not path.is_file():
         resolved = path if path.is_absolute() else Path.cwd() / path
@@ -271,11 +257,7 @@ def _data_uri(path: Path) -> tuple:
 
 
 def _stamp() -> str:
-    """取当前时刻的日志时间戳
-
-    Returns:
-        str: 形如 "11:14:55" 的文本
-    """
+    """取当前时刻的日志时间戳, 例如 11:14:55"""
     return datetime.now().astimezone().strftime(_STAMP_FORMAT)
 # endregion ---------------------------- 私有函数 ----------------------------
 

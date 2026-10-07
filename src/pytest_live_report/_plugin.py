@@ -64,8 +64,7 @@ def _report_path(config: pytest.Config) -> Optional[Path]:
         config (pytest.Config): 本次会话的配置对象
 
     Returns:
-        Optional[Path]: 报告文件的绝对路径; 没有配置选项时是 None, 调用方据此
-            判断报告功能是否启用
+        Optional[Path]: 报告文件的绝对路径; 没有配置选项时是 None
     """
     raw = config.getoption(OPTION_PATH)
     if not raw:
@@ -79,14 +78,11 @@ def _report_path(config: pytest.Config) -> Optional[Path]:
 def _is_worker(config: pytest.Config) -> bool:
     """当前进程是不是 xdist 的 worker
 
-    xdist 的 worker 会带上 `config.workerinput`, 单进程运行或没装 xdist 时没有
-    这个属性.
-
     Args:
         config (pytest.Config): 本次会话的配置对象
 
     Returns:
-        bool: True 表示这是 worker, 报告文件归控制器独占, 它一个字节都不该写
+        bool: True 表示这是 worker, 报告文件由控制器写
     """
     return hasattr(config, "workerinput")
 
@@ -98,7 +94,7 @@ def _env_info(config: pytest.Config) -> dict:
         config (pytest.Config): 本次会话的配置对象
 
     Returns:
-        dict: pytest / python / platform / rootdir 四项, 渲染时拼成一行
+        dict: pytest / python / platform / rootdir 四项
     """
     return {
         "pytest": pytest.__version__,
@@ -121,7 +117,7 @@ def _meta_line(env: dict) -> str:
 
 
 def _run_info(config: pytest.Config, exitstatus: int, started: datetime) -> dict:
-    """组装运行清单, 交给 `_render.run_manifest()` 渲染
+    """组装运行清单
 
     Args:
         config (pytest.Config): 本次会话的配置对象
@@ -155,12 +151,9 @@ def _notify(config: pytest.Config, message: str) -> None:
 def _warn_user(config: pytest.Config, message: str) -> None:
     """把报告自身的告警显示给用户, 不让测试因此中断
 
-    优先写终端而不是 `warnings.warn`: 用户设了 `-W error` 时告警会被当成异常抛出,
-    报告的问题反而把会话弄挂. 终端拿不到时再退回 `warnings.warn`.
-
     Args:
         config (pytest.Config): 本次会话的配置对象
-        message (str): 告警文案, 调用方自带 `pytest-live-report: ` 前缀
+        message (str): 告警文案, 调用方自带项目名前缀
     """
     reporter = config.pluginmanager.get_plugin("terminalreporter")
     if reporter is not None:
@@ -175,12 +168,11 @@ def _warn_user(config: pytest.Config, message: str) -> None:
 def _write_card(case: CaseData, report: Optional[Any] = None) -> None:
     """把一条用例的卡片写进报告, 并给状态计数加一
 
-    控制器直接写文件; worker 把渲染好的 HTML 挂到测试报告上, 随报告一起传回控制器,
-    自己一个字节都不写 -- 多个 worker 同时写同一个文件会互相覆盖.
+    控制器直接写文件; worker 把渲染好的 HTML 挂到测试报告上, 由控制器统一落盘.
 
     Args:
         case (CaseData): 已经填好的用例数据
-        report (Optional[Any]): worker 侧用来传回卡片的那份 teardown 报告; 控制器传 None
+        report (Optional[Any]): worker 侧用来传回卡片的测试报告; 控制器传 None
     """
     # ====================================================================================================
     # 这个分支决定报告能不能拿到全部用例: worker 一旦自己写文件, 几份内容会互相覆盖;
@@ -240,13 +232,11 @@ def _case_desc(item: pytest.Item) -> str:
 def _collect_phase(report: Any) -> dict:
     """把这次的阶段报告记下来, 并取回这条用例已经收集到的全部阶段
 
-    报告上只带 `report.nodeid`, 所以靠 nodeid 找到同一条用例的记录.
-
     Args:
         report (Any): 刚收到的阶段报告
 
     Returns:
-        dict: 阶段名 -> 报告; 记录刚建起来时只有本次这一份
+        dict: 阶段名到报告的映射; 记录刚建起来时只有本次这一份
     """
     nodeid = getattr(report, "nodeid", "")
     record = _store.ensure_phase(nodeid)
@@ -257,8 +247,7 @@ def _collect_phase(report: Any) -> dict:
 def _case_duration(reports: dict) -> float:
     """取用例总耗时, 保留两位小数
 
-    三个阶段要加起来: 每份报告只带自己那一阶段的耗时, 单看 teardown 就只有几百微秒.
-    先加总再取整, 免得三次取整的误差累加到一起.
+    三个阶段各带自己的耗时, 加起来才是整条用例的耗时.
 
     Args:
         reports (dict): 用例的三个阶段报告
@@ -321,8 +310,7 @@ def _pick_failed_report(reports: dict) -> Optional[Any]:
 def _is_passed(report: Any) -> bool:
     """这份阶段报告是不是正常通过或正常跳过
 
-    不用 `report.failed` 判断: 第三方插件可能给出别的 outcome (例如 pytest-rerunfailures
-    的 "rerun"), 用 `failed` 判断会把它们当成通过, 失败的用例被画成绿卡.
+    不用 `report.failed` 判断, 免得把第三方插件的其他结果 (例如 rerun) 当成通过.
 
     Args:
         report (Any): 一个阶段的测试报告
@@ -335,10 +323,6 @@ def _is_passed(report: Any) -> bool:
 
 def _case_skip_reason(reports: dict) -> str:
     """取跳过原因
-
-    跳过原因在 `longrepr` 三元组的第三项里, 形如
-    `("path/to/test.py", 12, "Skipped: why")`; 直接 `str(longrepr)` 会把整个元组
-    连引号一起渲染进报告.
 
     Args:
         reports (dict): 用例的三个阶段报告
@@ -359,14 +343,13 @@ def _case_skip_reason(reports: dict) -> str:
 def _case_status(reports: dict) -> str:
     """把三个阶段的报告合并成一个用例状态
 
-    三份都要看: teardown 报告永远说自己 passed, 只看它会把失败的用例写成绿色, 而
-    只看 call 又会漏掉 fixture 报错与 teardown 抛错.
+    三个阶段都要看, 否则会漏掉 fixture 报错或 teardown 抛错.
 
     Args:
         reports (dict): 用例的三个阶段报告
 
     Returns:
-        str: passed / failed / skipped 之一; 认不出的 outcome 一律按 failed
+        str: passed / failed / skipped 之一; 认不出的结果一律按 failed
     """
     if _pick_failed_report(reports) is not None:
         return STATUS_FAILED
@@ -492,11 +475,10 @@ def pytest_runtest_protocol(item: pytest.Item):
 def pytest_runtest_logreport(report: Any) -> None:
     """收集阶段报告, 到 teardown 那一次把整条用例写成卡片
 
-    这个钩子每条用例被调三次 (setup / call / teardown), 三份报告缺一不可: 只看 call
-    会漏掉 fixture 报错与 teardown 抛错, 只看 teardown 则会把失败的用例写成绿色.
+    这条钩子每条用例会被调三次 (setup / call / teardown).
 
     Args:
-        report (Any): pytest 的测试报告; 只有 teardown 那份会触发写盘
+        report (Any): pytest 的测试报告; 只有 teardown 那份会触发写卡片
     """
     config = _store.get_config()
     if config is None:
@@ -561,8 +543,7 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
 def pytest_unconfigure(config: pytest.Config) -> None:
     """会话收尾兜底: `sessionfinish` 没跑到时也要把文件关掉
 
-    不补页尾, 也不写运行清单: 半截报告正好说明这次没跑完. 正常流程下文件已经关掉,
-    这里什么都不做.
+    不补页尾与运行清单, 半截报告正好说明这次没跑完.
 
     Args:
         config (pytest.Config): 本次会话的配置对象

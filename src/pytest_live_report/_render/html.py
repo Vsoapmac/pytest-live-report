@@ -20,11 +20,8 @@ from typing import Any, Optional
 def esc(text: Any) -> str:
     """转义 HTML 元字符, 单双引号一并处理
 
-    报告里所有来自用户的内容 (用例名, 日志, traceback) 都要过这一层. 函数名保持
-    三个字母的短名, 因为它要在一行里出现很多次.
-
     Args:
-        text (Any): 任意取值, 内部先过 `str()`
+        text (Any): 要转义的内容, 会先转成字符串
 
     Returns:
         str: 可以直接拼进 HTML 正文或属性值的文本
@@ -39,10 +36,8 @@ def esc(text: Any) -> str:
 def json_script_value(value: Any) -> str:
     """把一个值渲染成能安全放进 `<script>` 的 JS 字面量
 
-    只给 `head.html` 里的 `var RPT_VERSION=...` 用, 页面数据一律走 `json_script()`.
-
     Args:
-        value (Any): 要嵌入的值, 通常就是版本号字符串
+        value (Any): 要嵌入的值, 通常是版本号字符串
 
     Returns:
         str: 该值的 JSON 形式, `<` 已转义
@@ -57,12 +52,6 @@ def json_script_value(value: Any) -> str:
 def duration_text(duration: float) -> str:
     """把秒数格式化成卡片上显示的耗时文本
 
-    Args:
-        duration (float): 秒数
-
-    Returns:
-        str: 形如 "12.34s" 的文本
-
     Example:
         >>> duration_text(12.3449)
         '12.34s'
@@ -71,13 +60,7 @@ def duration_text(duration: float) -> str:
 
 
 def time_text(moment: Optional[datetime]) -> str:
-    """把时刻格式化成卡片上显示的时间
-
-    Args:
-        moment (Optional[datetime]): 带本地时区的时刻; 缺失时传 None
-
-    Returns:
-        str: 形如 "11:14:55" 的文本; 时刻缺失时是空串
+    """把时刻格式化成卡片上显示的时间, 时刻缺失时返回空串
 
     Example:
         >>> time_text(None)

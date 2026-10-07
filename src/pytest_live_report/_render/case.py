@@ -159,9 +159,7 @@ def _error(case: CaseData) -> str:
 def _log(case: CaseData) -> str:
     """渲染用例执行期间写下的日志
 
-    折起来放, 默认展开: 默认折叠的话出错时用户还要多点一次才能看到现场.
-
-    每行日志存了原文与 HTML 两份, 卡片只贴 HTML 那一份.
+    日志区默认展开, 出错时不用再点一次.
 
     Args:
         case (CaseData): 用例数据
@@ -184,11 +182,6 @@ def _log(case: CaseData) -> str:
 
 def _shots(case: CaseData) -> str:
     """渲染用例执行期间保存的截图
-
-    图片是 base64 data URI, 直接放 `<img src>`; 页面脚本靠 `.rpt-shot img` 点击时
-    弹大图, 这个类名不能改.
-
-    每张截图还存了字节数与类型, 那是给脚本读的, 卡片上不显示.
 
     Args:
         case (CaseData): 用例数据

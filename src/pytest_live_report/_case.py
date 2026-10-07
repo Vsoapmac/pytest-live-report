@@ -63,16 +63,14 @@ class CaseData:
     shots: List[tuple] = field(default_factory=list)
 
     def json_record(self) -> dict:
-        """取这条用例的 JSON 记录, 供脚本提取执行信息
+        """取这条用例的 JSON 记录
 
-        这里只产出数据, 拼成页内 `<script>` 标签归 `_render.case`.
-
-        `v` 是版本号: 加字段不动它, 改字段名, 删字段或改动字段含义才递增. 所以脚本
-        读可选字段要用 `record.get("logs", [])`, 键缺失按空处理, 新旧报告都吃得下.
+        `v` 是记录格式版本号: 加字段不动它, 改字段名或改字段含义才递增. 脚本读
+        可选字段时键缺失按空处理, 新旧报告都能读.
 
         Returns:
             dict: 含 nodeid / name / status / duration / 起止时间 / 错误与跳过原因,
-                以及日志与截图的摘要; 图片数据不在这里, 只留在卡片 HTML 里
+                以及日志与截图的摘要; 图片数据不在里面
 
         Example:
             >>> CaseData(nodeid="t.py::test_x", status="passed").json_record()["status"]
